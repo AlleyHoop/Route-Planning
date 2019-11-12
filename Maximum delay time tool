@@ -1,0 +1,220 @@
+import googlemaps
+import random
+from googlemaps import Client
+from datetime import datetime
+
+global origin
+global destination
+global Requests
+
+apiKey = 'Insert_API_Key_Here'
+gmaps = googlemaps.Client(key = apiKey)
+now = datetime.now()
+
+####Function: This function returns the drive time in seconds between two locations##################################
+def Get_DrivingTime():
+    directions_results = gmaps.directions(origin,
+                                          destination,
+                                          mode = "driving",
+                                          departure_time = now)
+    return (directions_results[0]['legs'][0]['duration_in_traffic']['value'])
+#####################################################################################################################
+
+####Function: This function returns random postal codes within Delft#################################################
+def Get_PostalCode():
+    Check = True
+    while Check:
+        PostalCodeOne = random.choice(['2611', '2612', '2613', '2614', '2616', '2622', '2623', '2624', '2625', '2626', '2627', '2628', '2629'])
+        PostalCodeTwo = random.choice(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+        PostalCodeThree = random.choice(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+
+        PostalCode = ('{} {}{}'.format(PostalCodeOne, PostalCodeTwo, PostalCodeThree))
+
+        originCheck = gmaps.geocode(components={'country': 'NL',
+                                           'postal_code': PostalCode})
+        try:
+            originCheck[0]['geometry']['location']['lat']
+        except IndexError:
+            Check = True
+        else:
+            return (PostalCode)
+            break
+#####################################################################################################################
+
+####Function: Generating a request###################################################################################
+def Get_Request(Requests):
+    ####Get essential data##################
+    PickUpLocation[Requests] = Get_PostalCode()
+    DropOffLocation[Requests] = Get_PostalCode()
+    if PickUpLocation[Requests] == DropOffLocation[Requests]:
+        DropOffLocation[Requests] = Get_PostalCode()
+    PickedUpCheck[Requests] = 1
+    DropOffCheck[Requests] = 1
+    DriveTime[Requests] = 20000000000
+    print('New Request {}: Pick-Up at {} and Drop-Off at {}'.format(Requests + 1, PickUpLocation[Requests], DropOffLocation[Requests]))
+
+#####################################################################################################################
+
+
+
+
+
+Requests = 4
+####Get Current Location########################
+CurrentLocation = "2628 AL"
+print('Currentlocation of the Alley Hoop: Rotterdamseweg 137')
+################################################
+print("")
+
+PickUpLocation = list(range(Requests))
+DropOffLocation = list(range(Requests))
+PickedUpCheck = list(range(Requests))
+DropOffCheck = list(range(Requests))
+MEP = list(range(Requests)) ##Maximum Estimated Pickup time
+MET = list(range(Requests)) ##Maximum Estimated Travel time
+ETA = list(range(Requests)) ##Estimated Time of Arrival
+Fast = list(range(Requests))
+ActualTime = list(range(Requests))
+DriveTime = list(range(Requests))
+PossibleLocation = list(range(Requests))
+PickUpWaitingTime = list(range(Requests))
+DropOffWaitingTime = list(range(Requests))
+EndRequests = 0
+
+####Obtain 4 random requests####################
+for i in range(Requests):
+    Get_Request(i)
+    origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': CurrentLocation})[0]['geometry']['location']
+    destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': PickUpLocation[i]})[0]['geometry']['location']
+    if i == 0:
+        MEP[i] = Get_DrivingTime() * (i+1) * 1.5
+    else:
+        MEP[i] = 505 * (i+1) * 1.5
+    Fast[i] = Get_DrivingTime()
+    origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': PickUpLocation[i]})[0]['geometry']['location']
+    destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': DropOffLocation[i]})[0]['geometry']['location']
+    MET[i] = Get_DrivingTime() * 1.5
+    ETA[i] = (MEP[i] + MET[i])
+    Fast[i] = (Fast[i] + Get_DrivingTime())
+################################################
+
+#print("")
+#print(Fast)
+#print(MEP)
+#print(MET)
+#print(ETA)
+print("")
+
+
+while EndRequests < Requests:
+
+    EndLocation = ""
+
+    for i in range(Requests):
+        if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1:
+            PossibleLocation[i] = PickUpLocation[i]
+        elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+            PossibleLocation[i] = DropOffLocation[i]
+        else:
+            PossibleLocation[i] = 0
+
+    for i in range(Requests):
+        if PickedUpCheck[i] == 1 and EndLocation == "":
+            EndLocation = PickUpLocation[i]
+        elif DropOffCheck[i] == 1 and EndLocation == "":
+            EndLocation = DropOffLocation[i]
+
+
+    origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': CurrentLocation})[0]['geometry']['location']
+    destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': EndLocation})[0]['geometry']['location']
+    TravelTime = Get_DrivingTime()
+
+    #print(CurrentLocation)
+    #print(EndLocation)
+    #print(TravelTime)
+    DetourLocation = ""
+    for i in range(Requests):
+        if PossibleLocation[i] == EndLocation or PossibleLocation[i] == 0:
+            i = i
+        else:
+            origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': CurrentLocation})[0]['geometry']['location']
+            destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': PossibleLocation[i]})[0]['geometry']['location']
+            Extra = Get_DrivingTime()
+            ToDetour = Get_DrivingTime()
+            origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': PossibleLocation[i]})[0]['geometry']['location']
+            destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': EndLocation})[0]['geometry']['location']
+            Extra = Extra + Get_DrivingTime()
+            FromDetour = Get_DrivingTime()
+            DetourTime = Extra - TravelTime
+            if Extra < (TravelTime * 1.5):
+                DetourLocation = PossibleLocation[i]
+                break
+
+## Check if detour is acceptable
+
+    if DetourLocation == "":
+        for i in range(Requests):
+            if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1:
+                PickUpWaitingTime[i] = PickUpWaitingTime[i] + TravelTime
+            elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+                DropOffWaitingTime[i] = DropOffWaitingTime[i] + TravelTime
+
+            if PickUpLocation[i] == EndLocation:
+                PickedUpCheck[i] = 0
+            elif DropOffLocation[i] ==  EndLocation:
+                DropOffCheck[i] = 0
+    elif DetourLocation != "":
+        for i in range(Requests):
+            if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1:
+                PickUpWaitingTime[i] = PickUpWaitingTime[i] + ToDetour
+            elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+                DropOffWaitingTime[i] = DropOffWaitingTime[i] + ToDetour
+
+            if PickUpLocation[i] == DetourLocation:
+                PickedUpCheck[i] = 0
+            elif DropOffLocation[i] ==  DetourLocation:
+                DropOffCheck[i] = 0
+        for i in range(Requests):
+            if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1:
+                PickUpWaitingTime[i] = PickUpWaitingTime[i] + FromDetour
+            elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+                DropOffWaitingTime[i] = DropOffWaitingTime[i] + FromDetour
+
+            if PickUpLocation[i] == EndLocation:
+                PickedUpCheck[i] = 0
+            elif DropOffLocation[i] ==  EndLocation:
+                DropOffCheck[i] = 0
+    print(PickedUpCheck)
+    print(DropOffCheck)
+
+    if DetourLocation == "":
+        print('The Alley Hoop will drive from {} to {} in {} seconds.'.format(CurrentLocation, EndLocation, TravelTime))
+    else:
+        print('The Alley Hoop will drive from {} to DetourLocation {} in {} seconds.'.format(CurrentLocation,DetourLocation,ToDetour))
+        print('The Alley Hoop will drive from {} to EndLocation {} in {} seconds.'.format(DetourLocation, EndLocation, FromDetour))
+        print('The DetourTime will be: {} seconds.'.format(DetourTime))
+
+
+    print("")
+
+    CurrentLocation = EndLocation
+    for i in range(Requests):
+        if DropOffLocation[i] == EndLocation or DropOffLocation[i] == DetourLocation:
+            EndRequests = EndRequests + 1
+
+print("Waiting Times:")
+for i in range(Requests):
+    TotalWaitingTime = PickUpWaitingTime[i] + DropOffWaitingTime[i]
+    print("Passenger {} his/her ETA was: {} seconds.".format(i+1,ETA[i]))
+    print("Passenger {} waiting {} seconds for the Pick-Up and {} seconds for the Drop-Off. Total waiting time: {}".format(i+1, PickUpWaitingTime[i], DropOffWaitingTime[i], TotalWaitingTime))
+    print("")
