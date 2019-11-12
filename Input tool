@@ -1,0 +1,116 @@
+import googlemaps
+import random
+from googlemaps import Client
+from datetime import datetime
+
+global origin
+global destination
+
+apiKey = 'Insert_API_Key_Here'
+gmaps = googlemaps.Client(key = apiKey)
+now = datetime.now()
+
+####Function: This function returns the drive time in seconds between two locations, taking in account the current traffic####
+def Get_DrivingTime():
+    directions_results = gmaps.directions(origin,
+                                          destination,
+                                          mode = "driving",
+                                          departure_time = now)
+    return (directions_results[0]['legs'][0]['duration_in_traffic']['value'])
+#####################################################################################################################
+
+####Route Planning Tool##############################################################################################
+Requests = 0
+a = 1
+PickUp = list(range(Requests))
+DropOff = list(range(Requests))
+CurrentLocation = 'Rotterdamseweg 137'
+NewRequest = True
+
+print('The current location of the Alley Hoop is: ',CurrentLocation)
+####Get the pick up and drop off information
+while NewRequest:
+
+    PickUp.append(input("Where do you want to get picked up, passenger {}?: ".format(a)))
+    DropOff.append(input("Where do you want to get dropped off, passenger {}?: ".format(a)))
+    a += 1
+    Requests += 1
+    NewRequestCheck= input("New Request? (Y/N): ")
+
+    if NewRequestCheck == 'N':
+        NewRequest = False
+
+
+PickUpCheck = list(range(Requests))
+DropOffCheck = list(range(Requests))
+DriveTime = list(range(Requests))
+
+for i in range(Requests):
+    PickUpCheck[i] = 1
+    DropOffCheck[i] = 1
+
+
+####Print the postal codes from the pick ups and drop offs
+print(PickUp)
+print(DropOff)
+
+####Start Loop to fix requests####
+for route in range(Requests * 2):
+
+####Check were Alley Hoop can go to
+    for i in range(Requests):
+        if PickUpCheck[i] == 1 and DropOffCheck[i] == 1:
+
+            #Get Start Location
+            origin = gmaps.geocode(components={'country': 'NL',
+                                               'administrative_area_level_1': 'Delft',
+                                               'route': CurrentLocation})[0]['geometry']['location']
+
+            #Get End Location
+            destination = gmaps.geocode(components={'country': 'NL',
+                                                    'administrative_area_level_1': 'Delft',
+                                                    'route': PickUp[i]})[0]['geometry']['location']
+
+            DriveTime[i] = Get_DrivingTime()
+
+        elif PickUpCheck[i] == 0 and DropOffCheck[i] == 1:
+
+            #Get Start Location
+            origin = gmaps.geocode(components={'country': 'NL',
+                                               'administrative_area_level_1': 'Delft',
+                                               'route': CurrentLocation})[0]['geometry']['location']
+
+            #Get End Location
+            destination = gmaps.geocode(components={'country': 'NL',
+                                                    'administrative_area_level_1': 'Delft',
+                                                    'route': DropOff[i]})[0]['geometry']['location']
+
+            DriveTime[i] = Get_DrivingTime()
+
+        ####Pick up and drop off are fixed
+        elif PickUpCheck[i] == 0 and DropOffCheck[i] == 0:
+            DriveTime[i] = 99999
+
+#####################################################################################################################
+####Decide where to go
+    Minimum = min(DriveTime)
+
+    for i in range(Requests):
+        if DriveTime[i] == Minimum:
+            Location = i
+
+    ####Tell each next step
+    if PickUpCheck[Location] == 1:
+        print('Current location is {}. Alley Hoop will drive to Pick Up {} in {} seconds. Location {}.'.
+              format(CurrentLocation, Location + 1, Minimum,PickUp[Location]))
+    else:
+        print('Current location is {}. Alley Hoop will drive to Drop Off {} in {} seconds. Location {}.'.
+              format(CurrentLocation, Location + 1, Minimum, DropOff[Location]))
+
+    ####Check off a pick up or drop off when arrived
+    if PickUpCheck[Location] == 0:
+        CurrentLocation = DropOff[Location]
+        DropOffCheck[Location] = 0
+    elif PickUpCheck[Location] == 1:
+        CurrentLocation = PickUp[Location]
+        PickUpCheck[Location] = 0
