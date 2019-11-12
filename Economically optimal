@@ -1,0 +1,166 @@
+import googlemaps
+import random
+from googlemaps import Client
+from datetime import datetime
+
+global origin
+global destination
+global Requests
+
+apiKey = 'Insert_API_Key_Here'
+gmaps = googlemaps.Client(key = apiKey)
+now = datetime.now()
+
+####Function: This function returns the drive time in seconds between two locations##################################
+def Get_DrivingTime():
+    directions_results = gmaps.directions(origin,
+                                          destination,
+                                          mode = "driving",
+                                          departure_time = now)
+    return (directions_results[0]['legs'][0]['duration_in_traffic']['value'])
+#####################################################################################################################
+
+####Function: This function returns random postal codes within Delft#################################################
+def Get_PostalCode():
+    Check = True
+    while Check:
+        PostalCodeOne = random.choice(['2611', '2612', '2613', '2614', '2616', '2622', '2623', '2624', '2625', '2626', '2627', '2628', '2629'])
+        PostalCodeTwo = random.choice(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+        PostalCodeThree = random.choice(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+
+        PostalCode = ('{} {}{}'.format(PostalCodeOne, PostalCodeTwo, PostalCodeThree))
+
+        originCheck = gmaps.geocode(components={'country': 'NL',
+                                           'postal_code': PostalCode})
+        try:
+            originCheck[0]['geometry']['location']['lat']
+        except IndexError:
+            Check = True
+        else:
+            return (PostalCode)
+            break
+#####################################################################################################################
+
+####Function: Generating a request###################################################################################
+def Get_Request(Requests):
+    ####Get essential data##################
+    Start[Requests] = Get_PostalCode()
+    End[Requests] = Get_PostalCode()
+    if Start[Requests] == End[Requests]:
+        End[Requests] = Get_PostalCode()
+    PickedUpCheck[Requests] = 1
+    DropOffCheck[Requests] = 1
+    RequestCheck[Requests] = 1
+    DriveTime[Requests] = 20000000000
+    print('New Request {}: Pick-Up at {} and Drop-Off at {}'.format(Requests + 1, Start[Requests], End[Requests]))
+#####################################################################################################################
+
+####Obtain current location Alley Hoop####
+CurrentLocation = Get_PostalCode()
+print('CurrentLocation Alley Hoop: {}'.format(CurrentLocation))
+##########################################
+
+####How many simulations do you want?#####
+Simulate = 100
+##########################################
+
+####Make required lists and variables################
+global Start
+global PickedUpCheck
+global End
+global DropOffCheck
+
+Start = list(range(Simulate))
+PickedUpCheck = list(range(Simulate))
+End = list(range(Simulate))
+DropOffCheck = list(range(Simulate))
+DriveTime = list(range(Simulate))
+
+RequestCheck = list(range(Simulate))
+WaitingPickUpTime = list(range(Simulate))
+WaitingDropOffTime = list(range(Simulate))
+
+i = 0
+Requests  = 0
+EndRequest = 0
+CapacityCheck = 0
+TotalDriveTime = 0
+
+for i in range(Simulate):
+    PickedUpCheck[i] = 0
+    DropOffCheck[i] = 0
+    Start[i] = 0
+    End[i] = 0
+    DriveTime[i] = 0
+
+    RequestCheck[i] = 0
+    WaitingPickUpTime[i] = 0
+    WaitingDropOffTime[i] = 0
+######################################################
+
+
+while EndRequest < Simulate:
+
+####Get New Requests##################################
+    NewRequest = random.choice(['A', 'A', 'A', 'A', 'A'])
+    if NewRequest == 'A' and Requests < Simulate:
+        Get_Request(Requests)
+        Requests = Requests + 1
+#######################################################
+
+
+####Check for possible DriveToo Locations Alley Hoop###
+    for i in range(Simulate):
+        if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1 and CapacityCheck < 6:
+            origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': CurrentLocation})[0]['geometry']['location']
+            destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': Start[i]})[0]['geometry']['location']
+            DriveTime[i] = Get_DrivingTime()
+        elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+            origin = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': CurrentLocation})[0]['geometry']['location']
+            destination = gmaps.geocode(components={'country': 'NL',
+                                   'postal_code': End[i]})[0]['geometry']['location']
+            DriveTime[i] = Get_DrivingTime()
+        elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 0:
+            DriveTime[i] = 20000000000
+        elif PickedUpCheck[i] == 1 and DropOffCheck[i] == 1 and CapacityCheck > 5:
+            DriveTime[i] = 20000000000
+#######################################################
+
+####Check for minimum, and send Alley Hoop to location#
+    Minimum = min(DriveTime)
+    if Minimum == 20000000000:
+        Minimum = Minimum
+    else:
+        for i in range(Simulate):
+            if DriveTime[i] == Minimum:
+
+                ####Check Waiting Times#################################
+                for a in range(Simulate):
+                    #print('{}, {}, {}'. format(RequestCheck[a], PickedUpCheck[a], DropOffCheck[a]))
+                    if RequestCheck[a] == 1 and PickedUpCheck[a] == 1 and DropOffCheck[a] == 1:
+                        WaitingPickUpTime[a] = WaitingPickUpTime[a] + DriveTime[i]
+                    elif RequestCheck[a] == 1 and PickedUpCheck[a] == 0 and DropOffCheck[a] == 1:
+                        WaitingDropOffTime[a] = WaitingDropOffTime[a] + DriveTime[i]
+                ########################################################
+
+                if PickedUpCheck[i] == 1 and DropOffCheck[i] == 1:
+                    CapacityCheck = CapacityCheck + 1
+                    PickedUpCheck[i] = 0
+                    print('From {} Alley Hoop will drive to {} in {} seconds to Pick-Up request {}. Alley Hoop Capacity: {}'.format(CurrentLocation,Start[i], DriveTime[i], i + 1, CapacityCheck))
+                    CurrentLocation = Start[i]
+                elif PickedUpCheck[i] == 0 and DropOffCheck[i] == 1:
+                    CapacityCheck = CapacityCheck - 1
+                    DropOffCheck[i] = 0
+                    print('From {} Alley Hoop will drive to {} in {} seconds to Drop-Off request {}. Alley Hoop Capacity: {}'.format(CurrentLocation,End[i], DriveTime[i], i + 1, CapacityCheck))
+                    CurrentLocation = End[i]
+                    EndRequest = EndRequest + 1
+                TotalDriveTime = TotalDriveTime + DriveTime[i]
+####Loop Back###########################################
+
+for i in range(Simulate):
+    RequestCheck[i] = i + 1
+
+print(TotalDriveTime)
